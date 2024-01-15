@@ -92,6 +92,14 @@ if SERVER then
 end 
 
 if CLIENT then
+    
+    for i = 1, 100 do
+        surface.CreateFont("rem_"..i, {
+            font = "REM Regular",
+            size = i,
+        })
+    end
+
     hook.Add("OnPlayerChat", "job_chat_message", function(ply, text, teamChat, isDead)
 
         for cmd, chatCommand in pairs(chatChannels.chatCommands) do
