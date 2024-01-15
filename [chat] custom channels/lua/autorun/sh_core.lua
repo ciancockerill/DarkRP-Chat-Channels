@@ -77,14 +77,13 @@ if SERVER then
         if not IsJobInCommand(ply, cmd) then return "" end
 
         local message = text:sub(#cmd + 2) 
-        local playerName = ply:Nick()
         local nameColor = team.GetColor(ply:Team())
 
         if message == "" then return end
 
         for _, player in ipairs(player.GetAll()) do
             if IsJobInCommand(player, cmd) then
-                DarkRP.talkToPerson(player, nameColor, chatCommand.prefix .. " " .. playerName, chatCommand.color, message)
+                DarkRP.talkToPerson(player, nameColor, chatCommand.prefix.." "..player:Nick, chatCommand.color, message, ply)
             end
         end
         return ""
