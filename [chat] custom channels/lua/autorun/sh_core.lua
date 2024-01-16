@@ -83,7 +83,7 @@ if SERVER then
 
         for _, player in ipairs(player.GetAll()) do
             if IsJobInCommand(player, cmd) then
-                DarkRP.talkToPerson(player, nameColor, chatCommand.prefix.." "..player:Nick, chatCommand.color, message, ply)
+                DarkRP.talkToPerson(player, nameColor, chatCommand.prefix.." "..player:Nick(), chatCommand.color, message, ply)
             end
         end
         return ""
