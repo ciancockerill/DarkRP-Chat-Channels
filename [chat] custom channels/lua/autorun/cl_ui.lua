@@ -276,6 +276,11 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
             color = colorData
         }
 
+        if not chatChannels.validateChannelData(saveData, cmd, keyCommand) then 
+            surface.PlaySound("common/wpn_denyselect.wav")
+            return 
+        end 
+
         net.Start("ChatTableToServer")
             net.WriteTable(saveData)
             net.WriteString(cmd)
@@ -287,16 +292,6 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
     end 
 end
 
--- Reloads the UI to update the setting
-function chatChannels.UpdateCfgUI(Frame)
-    chatChannels.loadChannels()
-
-    timer.Simple(0.25,function()
-        Frame:Close()
-        chatChannels.CreateCfgUI()
-    end)
-end
-
 -- Opens GUI on client from Server request, delay needed to make sure updated table is on client.
 net.Receive("OpenChatConfig", function() 
     chatChannels.CreateCfgUI()
@@ -306,6 +301,23 @@ end)
 hook.Add("InitPostEntity", "LoadCConStart", function() 
     chatChannels.loadChannels()
 end )
+
+
+--[[    /////////////////////////////////////////////////////////////////////////////
+
+             Functions
+
+]]--    /////////////////////////////////////////////////////////////////////////////
+
+-- Reloads the UI to update the setting
+function chatChannels.UpdateCfgUI(Frame)
+    chatChannels.loadChannels()
+
+    timer.Simple(0.25,function()
+        Frame:Close()
+        chatChannels.CreateCfgUI()
+    end)
+end
 
 -- Gets all unique categories & adds all jobs associated
 function chatChannels.getAllCategories()
@@ -330,6 +342,7 @@ function chatChannels.getAllCategories()
 
 end
 
+-- Returns a table with names of jobs currently ticked
 function chatChannels.getCheckedJobs(jobDList)
     -- Checkbox is the 2nd Child of DTextEntry Line. If Ticked (true) then add the job name to job table.
 
@@ -345,9 +358,8 @@ function chatChannels.getCheckedJobs(jobDList)
 
 end
 
--- Returns if all jobs in category are in the checked jobs and the index at which they're ticked.
+-- Returns if all jobs in category are in the checked jobs and the index at which they're ticked (within the ticked boxes table)
 function chatChannels.areValuesContained(jobsInCat, checkedJobs)
-
     local jobIndexes = {}
 
     for key, value in pairs(jobsInCat) do
@@ -362,3 +374,9 @@ function chatChannels.areValuesContained(jobsInCat, checkedJobs)
     return jobIndexes, true
 
 end
+
+-- Returns true if the info to be save is safe to save
+function chatChannels.validateChannelData(saveData, cmd, keyCommand)
+    if (keyCommand == "" or saveData.prefix == "") then return false end
+    return true
+end 
