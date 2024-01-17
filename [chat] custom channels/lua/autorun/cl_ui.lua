@@ -1,26 +1,30 @@
 chatChannels = chatChannels or {}
 
+if SERVER then return end
+
 local openedPage = nil
+local openedMain = nil
 
 function chatChannels.loadChannels()
     net.Start("CCDataRequest")
     net.SendToServer()
 
     net.Receive("ChatTableToClient", function()
-        local chatChannelsLoaded = net.ReadTable()
-        chatChannels.chatCommands = chatChannelsLoaded
+        chatChannels.chatCommands = net.ReadTable()
     end)
+
 end 
 
 function chatChannels.CreateCfgUI()
-
+    
     local screenWidth, screenHeight = ScrW(), ScrH()
+    local padding = screenHeight * 0.01
     
     local Frame = vgui.Create("DFrame") -- Creates Parent Frame ("background")
     Frame:SetSize(screenWidth / 2, screenHeight / 1.2)
     Frame:SetTitle("")
     Frame:SetVisible(true) 
-    Frame:SetDraggable(true) 
+    Frame:SetDraggable(false)
     Frame:ShowCloseButton(true) 
     Frame:MakePopup()
     Frame:Center()
@@ -32,11 +36,13 @@ function chatChannels.CreateCfgUI()
     titleLabel:SetPos(Frame:GetWide() / 2 - titleLabel:GetWide() / 2, Frame:GetTall() * 0.05)
 
     local dividerY = Frame:GetTall() / 5
-    local chatSelW = Frame:GetWide() / 4    
+    local chatSelW = Frame:GetWide() / 4
+    local addButtonH = padding * 3.5
+    local delButtonS = padding * 1.5
     
     local chatSelBar = vgui.Create("DListView", Frame)
     chatSelBar:SetPos(0, dividerY)
-    chatSelBar:SetSize(chatSelW, Frame:GetTall() - dividerY)
+    chatSelBar:SetSize(chatSelW, Frame:GetTall() - dividerY - addButtonH)
     chatSelBar:SetMultiSelect(false)
     chatSelBar:AddColumn("Channels")
     chatSelBar:SetDataHeight(screenWidth * 0.0125)
@@ -56,9 +62,25 @@ function chatChannels.CreateCfgUI()
             surface.DrawRect(0,0,w,h)
         end
 
+        local delButton = vgui.Create("DButton", row)
+        delButton:SetFont("rem_15")
+        delButton:SetText("X")
+        delButton:SetSize(delButtonS, delButtonS)
+        delButton:SetPos(chatSelW - delButtonS * 2, row:GetTall() / 2 - delButtonS / 2)
+        delButton:SetPaintBorderEnabled(false)
+
+        delButton.DoClick = function()
+            net.Start("DeleteCCTable")
+                net.WriteString(key)
+            net.SendToServer()
+
+            chatChannels.UpdateCfgUI(Frame)
+        end
+
     end
 
-    if (IsValid(chatSelBar:GetLine(1))) then  -- Select and open first chat channel if it exists
+    -- Select and open first chat channel if it exists
+    if (IsValid(chatSelBar:GetLine(1))) then  
         chatSelBar:SelectFirstItem() 
         chatChannels.CreateCfgSettingPage(Frame, screenWidth, screenHeight, storedData[1], storedKeys[1] ) 
     end
@@ -67,13 +89,46 @@ function chatChannels.CreateCfgUI()
         chatChannels.CreateCfgSettingPage(Frame, screenWidth, screenHeight, storedData[rowIndex], storedKeys[rowIndex])
     end
 
+    local addChannelButton = vgui.Create("DButton", Frame)
+    addChannelButton:SetText("Add Channel")
+    addChannelButton:SetPos(0, chatSelBar:GetY() + chatSelBar:GetTall())
+    addChannelButton:SetSize(chatSelW, addButtonH)
+    addChannelButton:SetTextColor(Color(0,0,0))
+    addChannelButton:SetFont("rem_23")
+    addChannelButton:SetColor(Color(0,0,0))
+
+    -- Save a channel with placeholder name + random digits.
+    addChannelButton.DoClick = function(arguments)
+        local rand = tostring(math.random(0,999))
+
+        local saveData = {
+            jobs = {},
+            prefix = "[new"..rand.."]",
+            color = Color(90,90,90)
+        }
+
+        local cmd = "new"..rand
+        local keyCommand = "new"..rand
+
+        net.Start("ChatTableToServer")
+            net.WriteTable(saveData)
+            net.WriteString(cmd)
+            net.WriteString(keyCommand)
+        net.SendToServer()
+
+        chatChannels.UpdateCfgUI(Frame)
+
+    end
+
     Frame.OnClose = function()
+        chatChannels.loadChannels()
     end 
 
 end
 
 function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, data, cmd, oldName)
-    if !openedPage == nil then openedPage:Close() end -- if a page already opened close it and open new one just selected.
+    -- if a page already opened close it and open new one just selected.
+    if !openedPage == nil then openedPage:Close() end 
 
     local padding = screenHeight * 0.01
 
@@ -131,7 +186,8 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
     local channelCol = jobDList:AddColumn("In Channel?")
     channelCol:SetFixedWidth(padding * 10)
 
-    for _, job in pairs(RPExtraTeams) do -- Adds all jobs to the list & if they're currently enabled in channel
+    -- Adds all jobs to the list & if they're currently enabled in channel
+    for _, job in pairs(RPExtraTeams) do 
         local line = jobDList:AddLine(job.name, " ")
 
         local checkbox = vgui.Create("DCheckBox", line)
@@ -159,7 +215,6 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
     saveButton:SetText("Save")
     saveButton:SetSize(padding * 10, padding * 3.5)
     saveButton:SetPos(settingPanel:GetWide() / 2 - saveButton:GetWide() / 2, colorList:GetY() + colorList:GetTall() + padding * 3)
-    saveButton:SetPaintBackground(true)
     saveButton:SetTextColor(Color(0,0,0))
     saveButton:SetFont("rem_20")
 
@@ -169,7 +224,8 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
         local keyCommand = cmdEntry:GetText()
         local jobsData = {}
 
-        for _, line in pairs(jobDList:GetLines()) do -- Checkbox is the 2nd Child of DTextEntry Line. If Ticked (true) then add the job name to job table.
+        -- Checkbox is the 2nd Child of DTextEntry Line. If Ticked (true) then add the job name to job table.
+        for _, line in pairs(jobDList:GetLines()) do 
             if line:GetChild(2):GetChecked() then
                 table.insert(jobsData, string.lower(line:GetValue(1)))
             end
@@ -181,7 +237,7 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
             jobs = jobsData,
             prefix = prefixData,
             color = colorData
-            }
+        }
 
         net.Start("ChatTableToServer")
             net.WriteTable(saveData)
@@ -189,15 +245,27 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
             net.WriteString(keyCommand)
         net.SendToServer()
 
-        chatChannels.loadChannels()
-        parent:Close()
+        chatChannels.UpdateCfgUI(parent)
 
     end 
 end
 
-net.Receive("OpenChatConfig", function() -- Opens GUI on client from Server request
+-- Reloads the UI to update the setting
+function chatChannels.UpdateCfgUI(Frame)
     chatChannels.loadChannels()
+
+    timer.Simple(0.25,function()
+        Frame:Close()
+        chatChannels.CreateCfgUI()
+    end)
+end
+
+-- Opens GUI on client from Server request
+net.Receive("OpenChatConfig", function() 
     chatChannels.CreateCfgUI()
 end)
 
-
+-- Load channels when client loads into server
+hook.Add("InitPostEntity", "LoadCConStart", function() 
+    chatChannels.loadChannels()
+end )

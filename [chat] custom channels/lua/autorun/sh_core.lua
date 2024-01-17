@@ -1,5 +1,5 @@
 chatChannels = chatChannels or {}
-chatChannels.chatCommands = {}
+chatChannels.chatCommands = chatChannels.chatCommands or {}
 
 if SERVER then 
 
@@ -13,6 +13,7 @@ if SERVER then
     util.AddNetworkString("OpenChatConfig")
     util.AddNetworkString("ChatTableToServer")
     util.AddNetworkString("ChatTableToClient")
+    util.AddNetworkString("DeleteCCTable")
 
     -- Loading table data onto server & sending to client to load in UI.
     net.Receive("CCDataRequest", function(len, ply) 
@@ -36,6 +37,19 @@ if SERVER then
 
         file.Write("chatchannel_stored.json", util.TableToJSON(chatChannels.chatCommands))
     end)
+
+    -- Deleting table data from client to server 
+    net.Receive("DeleteCCTable", function(len, ply)
+        local chatChannelsJSON = file.Read("chatchannel_stored.json")
+        chatChannels.chatCommands = util.JSONToTable(chatChannelsJSON) or {}
+    
+        local key = net.ReadString()
+    
+        chatChannels.chatCommands[key] = nil 
+    
+        file.Write("chatchannel_stored.json", util.TableToJSON(chatChannels.chatCommands))
+    end)
+    
 
     --[[    /////////////////////////////////////////////////////////////////////////////
 
@@ -83,7 +97,7 @@ if SERVER then
 
         for _, player in ipairs(player.GetAll()) do
             if IsJobInCommand(player, cmd) then
-                DarkRP.talkToPerson(player, nameColor, chatCommand.prefix.." "..player:Nick, chatCommand.color, message, ply)
+                DarkRP.talkToPerson(player, nameColor, chatCommand.prefix.." "..player:Nick(), chatCommand.color, message, ply)
             end
         end
         return ""
