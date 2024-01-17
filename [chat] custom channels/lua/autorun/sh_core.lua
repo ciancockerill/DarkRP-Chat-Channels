@@ -31,6 +31,9 @@ if SERVER then
         local appendData = net.ReadTable()
         local appendKey = net.ReadString()
         local newKey = net.ReadString()
+
+        local chatChannelsJSON = file.Read("chatchannel_stored.json")
+        chatChannels.chatCommands = util.JSONToTable(chatChannelsJSON) or {}
         
         chatChannels.chatCommands[appendKey] = chatChannels.chatCommands[newKey]
         chatChannels.chatCommands[newKey] = appendData
@@ -126,6 +129,6 @@ if CLIENT then
             end
             
         end
-
     end)
+    
 end
