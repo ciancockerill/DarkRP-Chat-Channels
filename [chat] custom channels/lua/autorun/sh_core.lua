@@ -16,7 +16,9 @@ if SERVER then
     util.AddNetworkString("DeleteCCTable")
 
     -- Loading table data onto server & sending to client to load in UI.
-    net.Receive("CCDataRequest", function(len, ply) 
+    net.Receive("CCDataRequest", function(len, ply)
+        if not chatChannels.chatCommands[ply:GetUserGroup()] then return end 
+
         local chatChannelsJSON = file.Read("chatchannel_stored.json")
         local chatChannelsTable = util.JSONToTable(chatChannelsJSON)
 
@@ -28,6 +30,8 @@ if SERVER then
 
     -- Loading UI CFG from client to server, converting to JSON & writing to file for persistence.
     net.Receive("ChatTableToServer", function(len, ply)
+        if not chatChannels.chatCommands[ply:GetUserGroup()] then return end
+
         local appendData = net.ReadTable()
         local appendKey = net.ReadString()
         local newKey = net.ReadString()
@@ -43,6 +47,8 @@ if SERVER then
 
     -- Deleting table data from client to server 
     net.Receive("DeleteCCTable", function(len, ply)
+        if not chatChannels.chatCommands[ply:GetUserGroup()] then return end
+
         local chatChannelsJSON = file.Read("chatchannel_stored.json")
         chatChannels.chatCommands = util.JSONToTable(chatChannelsJSON) or {}
     
