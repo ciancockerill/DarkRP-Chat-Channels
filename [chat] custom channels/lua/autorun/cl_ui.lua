@@ -2,9 +2,6 @@ chatChannels = chatChannels or {}
 
 if SERVER then return end
 
-local openedPage = nil
-local openedMain = nil
-
 function chatChannels.loadChannels()
     net.Start("CCDataRequest")
     net.SendToServer()
@@ -176,7 +173,7 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
 
     -- Job DList
     local jobDList = vgui.Create("DListView", settingPanel)
-    jobDList:SetSize(settingPanel:GetWide() / 2, settingPanel:GetTall() / 2)
+    jobDList:SetSize(settingPanel:GetWide() / 2, settingPanel:GetTall() / 2.25)
     jobDList:SetPos(settingPanel:GetWide() / 2 - jobDList:GetWide() / 2, jobLabel:GetY() + padding * 3)
     jobDList:AddColumn("DarkRP Jobs")
     jobDList:SetHideHeaders(true)
@@ -195,13 +192,61 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
         checkbox:SetPos(jobDList:GetWide() - channelCol:GetWide() / 2 - checkbox:GetWide() / 2, line:GetTall() / 2 - checkbox:GetTall() / 2)
     end
 
+    -- Toggle Categories in Job DList
+    local categoryButton = vgui.Create("DButton", settingPanel)
+    categoryButton:SetSize(jobDList:GetWide(), padding * 2)
+    categoryButton:SetPos(settingPanel:GetWide() / 2 - jobDList:GetWide() / 2, jobDList:GetY() + jobDList:GetTall())
+    categoryButton:SetFont("rem_14")
+    categoryButton:SetTextColor(Color(0,0,0))
+    categoryButton:SetText("Toggle Categories")
+
+    categoryButton.DoClick = function()
+        -- Creating a menu with buttons for each category.
+        local catMenu = DermaMenu()
+        catMenu:Open()
+
+        for category, data in pairs(chatChannels.getAllCategories()) do
+           local menuButton = catMenu:AddOption(tostring(category)) 
+
+           -- Unticks jobs in category if all present, ticks remaning if not.
+            menuButton.DoClick = function()
+                local checkedJobs = chatChannels.getCheckedJobs(jobDList)
+                local jobsinCat = data.jobs
+                local jobIndexes, allJobsInCat = chatChannels.areValuesContained(jobsinCat, checkedJobs)
+
+                local checkCount = 0
+                local lines = jobDList:GetLines()
+
+                if (allJobsInCat) then
+                    for _, line in pairs(lines) do 
+                        local checkbox = line:GetChild(2)
+
+                        if checkbox:GetChecked() then
+                            checkCount = checkCount + 1
+                            if (table.HasValue(jobIndexes, checkCount)) then
+                                checkbox:SetChecked(false)
+                            end
+                        end
+                    end
+                else
+                    for _, line in pairs(lines) do
+                        if (table.HasValue(jobsinCat, string.lower(line:GetValue(1)))) then
+                            local checkbox = line:GetChild(2)
+                            checkbox:SetChecked(true)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     -- Color Label
     local colorLabel = vgui.Create("DLabel", settingPanel)
     colorLabel:SetFont("rem_25")
     colorLabel:SetText("Colour Selection")
     colorLabel:SetTextColor(Color(0,0,0))
     colorLabel:SetSize(colorLabel:GetTextSize())
-    colorLabel:SetPos(settingPanel:GetWide() / 2 - colorLabel:GetWide() / 2, jobDList:GetY() + jobDList:GetTall() + padding * 1.5)
+    colorLabel:SetPos(settingPanel:GetWide() / 2 - colorLabel:GetWide() / 2, categoryButton:GetY() + categoryButton:GetTall() + padding * 1.5)
 
     -- Color List
     local colorList = vgui.Create("DColorMixer", settingPanel)
@@ -222,15 +267,7 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
 
         local prefixData = prefixEntry:GetText()
         local keyCommand = cmdEntry:GetText()
-        local jobsData = {}
-
-        -- Checkbox is the 2nd Child of DTextEntry Line. If Ticked (true) then add the job name to job table.
-        for _, line in pairs(jobDList:GetLines()) do 
-            if line:GetChild(2):GetChecked() then
-                table.insert(jobsData, string.lower(line:GetValue(1)))
-            end
-        end 
-
+        local jobsData = chatChannels.getCheckedJobs(jobDList)
         local colorData = colorList:GetColor()
 
         local saveData = {
@@ -260,7 +297,7 @@ function chatChannels.UpdateCfgUI(Frame)
     end)
 end
 
--- Opens GUI on client from Server request
+-- Opens GUI on client from Server request, delay needed to make sure updated table is on client.
 net.Receive("OpenChatConfig", function() 
     chatChannels.CreateCfgUI()
 end)
@@ -269,3 +306,59 @@ end)
 hook.Add("InitPostEntity", "LoadCConStart", function() 
     chatChannels.loadChannels()
 end )
+
+-- Gets all unique categories & adds all jobs associated
+function chatChannels.getAllCategories()
+    local uniqueCat = {}
+
+    for _, jobs in pairs(RPExtraTeams) do
+        local cat = jobs.category
+        local jobName = jobs.name
+        
+        if not uniqueCat[cat] then
+            uniqueCat[cat] = {
+                exist = true,
+                jobs = {}
+            }
+        end
+
+        table.insert(uniqueCat[cat].jobs, string.lower(jobName))
+
+    end
+
+    return uniqueCat
+
+end
+
+function chatChannels.getCheckedJobs(jobDList)
+    -- Checkbox is the 2nd Child of DTextEntry Line. If Ticked (true) then add the job name to job table.
+
+    local jobsData = {}
+
+    for _, line in pairs(jobDList:GetLines()) do 
+        if line:GetChild(2):GetChecked() then
+            table.insert(jobsData, string.lower(line:GetValue(1)))
+        end
+    end 
+
+    return jobsData
+
+end
+
+-- Returns if all jobs in category are in the checked jobs and the index at which they're ticked.
+function chatChannels.areValuesContained(jobsInCat, checkedJobs)
+
+    local jobIndexes = {}
+
+    for key, value in pairs(jobsInCat) do
+        if not table.HasValue(checkedJobs, value) then
+            return nil, false
+        end
+
+        table.insert(jobIndexes, table.KeyFromValue(checkedJobs, value) )
+
+    end
+
+    return jobIndexes, true
+
+end
