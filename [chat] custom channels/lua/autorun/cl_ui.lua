@@ -278,8 +278,10 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
 
         if not chatChannels.validateChannelData(saveData, cmd, keyCommand) then 
             surface.PlaySound("common/wpn_denyselect.wav")
-            return 
+            return
         end 
+
+        surface.PlaySound("buttons/button9.wav")
 
         net.Start("ChatTableToServer")
             net.WriteTable(saveData)
