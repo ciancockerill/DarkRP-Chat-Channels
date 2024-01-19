@@ -3,10 +3,10 @@ chatChannels = chatChannels or {}
 if SERVER then return end
 
 function chatChannels.loadChannels()
-    net.Start("CCDataRequest")
+    net.Start("ChatTable_RequestEntries")
     net.SendToServer()
 
-    net.Receive("ChatTableToClient", function()
+    net.Receive("ChatTable_EntryToClient", function()
         chatChannels.chatCommands = net.ReadTable()
     end)
 
@@ -67,7 +67,7 @@ function chatChannels.CreateCfgUI()
         delButton:SetPaintBorderEnabled(false)
 
         delButton.DoClick = function()
-            net.Start("DeleteCCTable")
+            net.Start("ChatTable_DeleteConfigEntry")
                 net.WriteString(key)
             net.SendToServer()
 
@@ -107,7 +107,7 @@ function chatChannels.CreateCfgUI()
         local cmd = "new"..rand
         local keyCommand = "new"..rand
 
-        net.Start("ChatTableToServer")
+        net.Start("ChatTable_EntryToServer")
             net.WriteTable(saveData)
             net.WriteString(cmd)
             net.WriteString(keyCommand)
@@ -283,7 +283,7 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
 
         surface.PlaySound("buttons/button9.wav")
 
-        net.Start("ChatTableToServer")
+        net.Start("ChatTable_EntryToServer")
             net.WriteTable(saveData)
             net.WriteString(cmd)
             net.WriteString(keyCommand)
@@ -295,7 +295,7 @@ function chatChannels.CreateCfgSettingPage(parent, screenWidth, screenHeight, da
 end
 
 -- Opens GUI on client from Server request, delay needed to make sure updated table is on client.
-net.Receive("OpenChatConfig", function() 
+net.Receive("ChatTable_OpenConfigUI", function() 
     chatChannels.CreateCfgUI()
 end)
 
@@ -307,7 +307,7 @@ end )
 
 --[[    /////////////////////////////////////////////////////////////////////////////
 
-             Functions
+            Client Functions
 
 ]]--    /////////////////////////////////////////////////////////////////////////////
 

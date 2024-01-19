@@ -2,6 +2,7 @@ chatChannels = chatChannels or {}
 chatChannels.chatCommands = chatChannels.chatCommands or {}
 
 if SERVER then 
+    local fileP = "chatchannel_stored.json"
 
     --[[    /////////////////////////////////////////////////////////////////////////////
 
@@ -9,36 +10,43 @@ if SERVER then
 
     ]]--    /////////////////////////////////////////////////////////////////////////////
 
-    util.AddNetworkString("CCDataRequest")
-    util.AddNetworkString("OpenChatConfig")
-    util.AddNetworkString("ChatTableToServer")
-    util.AddNetworkString("ChatTableToClient")
-    util.AddNetworkString("DeleteCCTable")
+    util.AddNetworkString("ChatTable_RequestEntries")
+    util.AddNetworkString("ChatTable_OpenConfigUI")
+    util.AddNetworkString("ChatTable_EntryToServer")
+    util.AddNetworkString("ChatTable_EntryToClient")
+    util.AddNetworkString("ChatTable_DeleteConfigEntry")
 
     -- Loading table data onto server & sending to client to load in UI.
-    net.Receive("CCDataRequest", function(len, ply)
-        if not chatChannels.chatCommands[ply:GetUserGroup()] then return end 
+    net.Receive("ChatTable_RequestEntries", function(len, ply)
+        if !(chatChannels.verifyNetMessages(ply)) then return end
 
         local chatChannelsJSON = file.Read("chatchannel_stored.json")
-        local chatChannelsTable = util.JSONToTable(chatChannelsJSON)
 
-        net.Start("ChatTableToClient")
+        if (string.len(chatChannelsJSON) < 1) then 
+            return
+        end 
+
+        local chatChannelsTable = util.JSONToTable(chatChannelsJSON)
+        
+
+        net.Start("ChatTable_EntryToClient")
             net.WriteTable(chatChannelsTable)
         net.Send(ply)
     
     end)
 
     -- Loading UI CFG from client to server, converting to JSON & writing to file for persistence.
-    net.Receive("ChatTableToServer", function(len, ply)
-        if not chatChannels.chatCommands[ply:GetUserGroup()] then return end
+    net.Receive("ChatTable_EntryToServer", function(len, ply)
+        if !(chatChannels.verifyNetMessages(ply)) then return end
 
         local appendData = net.ReadTable()
         local appendKey = net.ReadString()
         local newKey = net.ReadString()
 
         local chatChannelsJSON = file.Read("chatchannel_stored.json")
+
         chatChannels.chatCommands = util.JSONToTable(chatChannelsJSON) or {}
-        
+    
         chatChannels.chatCommands[appendKey] = chatChannels.chatCommands[newKey]
         chatChannels.chatCommands[newKey] = appendData
 
@@ -46,14 +54,13 @@ if SERVER then
     end)
 
     -- Deleting table data from client to server 
-    net.Receive("DeleteCCTable", function(len, ply)
-        if not chatChannels.chatCommands[ply:GetUserGroup()] then return end
+    net.Receive("ChatTable_DeleteConfigEntry", function(len, ply)
+        if !(chatChannels.verifyNetMessages(ply)) then return end
 
         local chatChannelsJSON = file.Read("chatchannel_stored.json")
         chatChannels.chatCommands = util.JSONToTable(chatChannelsJSON) or {}
     
         local key = net.ReadString()
-    
         chatChannels.chatCommands[key] = nil 
     
         file.Write("chatchannel_stored.json", util.TableToJSON(chatChannels.chatCommands))
@@ -80,7 +87,7 @@ if SERVER then
     hook.Add("PlayerSay", "job_chat_message", function(ply, text, teamChat)
          
         if (text == chatChannels.configCMD and chatChannels.allowedUserGroups[ply:GetUserGroup()]) then
-            net.Start("OpenChatConfig")
+            net.Start("ChatTable_OpenConfigUI")
             net.Send(ply)
 
             return ""
@@ -111,6 +118,30 @@ if SERVER then
         end
         return ""
     end)
+
+    --[[    /////////////////////////////////////////////////////////////////////////////
+
+                Server Functions
+
+    ]]--    /////////////////////////////////////////////////////////////////////////////
+
+    -- Validates Usergroup on server side & verifies if the file exists.
+    function chatChannels.verifyNetMessages(ply)
+        if !(chatChannels.allowedUserGroups[ply:GetUserGroup()]) then
+            print("[Chat Channels] Player: ".. ply:GetName().." ("..ply:SteamID() .. ")".. " tried to alter Chat Channel Config")
+            return false
+        end
+
+        if !(file.Exists(fileP, "DATA")) then
+            file.Write("chatchannel_stored.json", "")
+            print("[Chat Channels] Load File Unavailable, Corrupted or this is your first time loading it - Data File Created.")
+    
+            return false
+        end
+
+        return true
+    end
+
 end 
 
 if CLIENT then
@@ -138,3 +169,4 @@ if CLIENT then
     end)
     
 end
+
