@@ -85,30 +85,34 @@ if SERVER then
     end
 
     hook.Add("PlayerSay", "job_chat_message", function(ply, text, teamChat)
-         
-        if (text == chatChannels.configCMD and chatChannels.allowedUserGroups[ply:GetUserGroup()]) then
-            net.Start("ChatTable_OpenConfigUI")
-            net.Send(ply)
 
-            return ""
+        if (text == chatChannels.configCMD) then
+            if (chatChannels.allowedUserGroups[ply:GetUserGroup()]) then
+                net.Start("ChatTable_OpenConfigUI")
+                net.Send(ply)
+    
+                return ""
+            else 
+                ply:ChatPrint("[Chat Channels] Config Can't be accessed by "..ply:GetUserGroup().."'s")
 
-        elseif (text == chatChannels.configCMD and not chatChannels.allowedUserGroups[ply:GetUserGroup()]) then
-            ply:ChatPrint("[Chat Channels] Config Can't be accessed by "..ply:GetUserGroup().."'s")
-            return ""
-        end 
+                return ""
+            end
+        end
 
         local cmd = text:match("^/(%S+)")
         if not cmd then return end
 
         cmd = cmd:lower()
-        local chatCommand = chatChannels.chatCommands[cmd]
-        if not chatCommand then return end
 
-        if not IsJobInCommand(ply, cmd) then return "" end
+        -- If chat command doesn't exist or players job isn't in command, chat sends nothing to 
+        if (not chatChannels.chatCommands[cmd]) or (not IsJobInCommand(ply, cmd)) then 
+            return ""
+        end
 
         local message = text:sub(#cmd + 2) 
         local nameColor = team.GetColor(ply:Team())
 
+        -- Prevents blank message spam
         if message == "" then return end
 
         for _, player in ipairs(player.GetAll()) do
@@ -116,7 +120,9 @@ if SERVER then
                 DarkRP.talkToPerson(player, nameColor, chatCommand.prefix.." "..player:Nick(), chatCommand.color, message, ply)
             end
         end
+
         return ""
+
     end)
 
     --[[    /////////////////////////////////////////////////////////////////////////////
