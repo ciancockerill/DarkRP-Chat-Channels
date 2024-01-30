@@ -1,3 +1,6 @@
+AddCSLuaFile()
+AddCSLuaFile("cl_ui.lua")
+
 chatChannels = chatChannels or {}
 chatChannels.chatCommands = chatChannels.chatCommands or {}
 
